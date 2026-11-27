@@ -83,3 +83,11 @@ test("parseUserInfo", () => {
   assert.deepEqual(parseUserInfo("upload=1; download=2; total=3; expire=4"), { upload: 1, download: 2, total: 3, expire: 4 });
   assert.deepEqual(parseUserInfo(undefined), { upload: 0, download: 0, total: 0, expire: 0 });
 });
+
+test("config: SUPPORT_URL y PROFILE_WEB_URL solo aceptan http(s); comentarios o vacío se ignoran", () => {
+  const load = require("../src/config").load;
+  const base = { MONGO_URI: "mongodb://x", ENCRYPTION_KEY: "a".repeat(64) };
+  assert.equal(load({ ...base, SUPPORT_URL: "# p. ej. https://t.me/x" }).supportUrl, "");
+  assert.equal(load({ ...base, SUPPORT_URL: "https://t.me/carlosvm182" }).supportUrl, "https://t.me/carlosvm182");
+  assert.equal(load({ ...base, PROFILE_WEB_URL: "" }).profileWebUrl, "");
+});

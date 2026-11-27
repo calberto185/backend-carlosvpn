@@ -5,5 +5,6 @@
   "sub.upstream_unavailable": "暂时无法获取您的订阅，请几分钟后重试。",
   "error.rate_limited": "请求过多，请稍候。",
   "lang.choose": "选择语言",
-  "lang.changed": "语言已切换为 {name}。"
+  "lang.changed": "语言已切换为 {name}。",
+  "sub.announce": "感谢选择 Carlos VPN。需要帮助？请点击支持图标。"
 }
