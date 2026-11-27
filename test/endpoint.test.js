@@ -52,6 +52,11 @@ test("200 con un panel: enlaces, cabeceras de marca y consumo", async () => {
   assert.equal(Buffer.from(r.headers.get("profile-title").replace("base64:", ""), "base64").toString(), "Carlos VPN | КарлосВПН");
   assert.equal(r.headers.get("profile-update-interval"), "6");
   assert.equal(r.headers.get("x-sub-nodes"), "2");
+  // anuncio localizado (por defecto es), soporte y aviso de vencimiento
+  assert.match(Buffer.from(r.headers.get("announce").replace("base64:", ""), "base64").toString(), /Carlos VPN/);
+  assert.equal(r.headers.get("support-url"), "https://t.me/x");
+  assert.equal(r.headers.get("sub-expire"), "true");
+  assert.equal(r.headers.get("sub-expire-button-link"), "https://t.me/x");
   // el HWID y el UA llegan al panel
   assert.equal(s.calls[0].headers["x-hwid"], "abc123");
   assert.equal(s.calls[0].headers["x-device-os"], "Android");

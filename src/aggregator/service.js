@@ -72,6 +72,13 @@ async function buildSubscription({ token, userAgent, headers, query, repo, provi
     "x-sub-nodes": String(merged.count),
   };
   if (cfg.supportUrl) out["support-url"] = cfg.supportUrl;
+  if (cfg.profileWebUrl) out["profile-web-page-url"] = cfg.profileWebUrl;
+  // Anuncio en el idioma del usuario (Happ muestra hasta 200 caracteres).
+  const announce = t(lang, "sub.announce");
+  if (announce && announce !== "sub.announce") out["announce"] = `base64:${b64(announce.slice(0, 200))}`;
+  // Aviso de vencimiento (Happ lo muestra solo en los últimos 3 días) con botón de renovar.
+  out["sub-expire"] = "true";
+  if (cfg.supportUrl) out["sub-expire-button-link"] = cfg.supportUrl;
   if (failed) out["x-sub-partial"] = `${failed}/${settled.length}`;
   return { status: 200, headers: out, body: merged.body };
 }

@@ -5,5 +5,6 @@
   "sub.upstream_unavailable": "No pudimos obtener tu suscripción en este momento. Inténtalo de nuevo en unos minutos.",
   "error.rate_limited": "Demasiadas solicitudes. Espera un momento.",
   "lang.choose": "Elige tu idioma",
-  "lang.changed": "Idioma cambiado a {name}."
+  "lang.changed": "Idioma cambiado a {name}.",
+  "sub.announce": "Gracias por elegir Carlos VPN. ¿Necesitas ayuda? Toca el icono de soporte."
 }

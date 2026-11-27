@@ -5,5 +5,6 @@
   "sub.upstream_unavailable": "We couldn't load your subscription right now. Please try again in a few minutes.",
   "error.rate_limited": "Too many requests. Please wait a moment.",
   "lang.choose": "Choose your language",
-  "lang.changed": "Language changed to {name}."
+  "lang.changed": "Language changed to {name}.",
+  "sub.announce": "Thanks for choosing Carlos VPN. Need help? Tap the support icon."
 }
