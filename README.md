@@ -7,7 +7,8 @@ Node.js. Fuente de verdad del servicio y agregador de suscripción en `https://v
 - PasarGuard: reservado, lanza "no implementado".
 - Agregador `GET /s/:token`: base64, JSON Xray, sing-box y Clash; cabeceras de marca y consumo sumado; tolera paneles caídos; límite de peticiones.
 - Idiomas: es, en, ru, zh, ar (RTL), hi, bn. Catálogo en `src/i18n/locales`, API `GET /i18n/locales` y `GET /i18n/:codigo`. Los errores del agregador salen en el idioma del usuario.
-- Pruebas: `npm test` (27, con panel simulado).
+- Administración por consola (`src/cli.js`): registrar paneles y crear/suspender suscripciones. En el VPS: `cd /opt/carlosvpn && docker compose exec backend node src/cli.js help`.
+- Pruebas: `npm test` (31, con panel simulado).
 
 ## Pendiente de validar con el panel real
 - User-Agent que usa Remnawave para elegir cada formato cuando se fuerza `?format=` (`src/aggregator/detect.js`, `FORMAT_UA`).
@@ -28,4 +29,3 @@ npm start
 
 ## Seguridad
 Token de 32 caracteres; los inválidos y los desconocidos responden igual (404). No subas `.env` a GitHub.
-# backend-carlosvpn
