@@ -1,0 +1,9 @@
+{
+  "_name": "Español",
+  "_dir": "ltr",
+  "sub.inactive": "Tu suscripción está vencida o suspendida.",
+  "sub.upstream_unavailable": "No pudimos obtener tu suscripción en este momento. Inténtalo de nuevo en unos minutos.",
+  "error.rate_limited": "Demasiadas solicitudes. Espera un momento.",
+  "lang.choose": "Elige tu idioma",
+  "lang.changed": "Idioma cambiado a {name}."
+}

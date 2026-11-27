@@ -1,0 +1,9 @@
+{
+  "_name": "English",
+  "_dir": "ltr",
+  "sub.inactive": "Your subscription is expired or suspended.",
+  "sub.upstream_unavailable": "We couldn't load your subscription right now. Please try again in a few minutes.",
+  "error.rate_limited": "Too many requests. Please wait a moment.",
+  "lang.choose": "Choose your language",
+  "lang.changed": "Language changed to {name}."
+}
