@@ -6,5 +6,9 @@
   "error.rate_limited": "Too many requests. Please wait a moment.",
   "lang.choose": "Choose your language",
   "lang.changed": "Language changed to {name}.",
-  "sub.announce": "Thanks for choosing Carlos VPN. Need help? Tap the support icon."
+  "sub.announce": "Thanks for choosing Carlos VPN. Need help? Tap the support icon.",
+  "auth.invalid_credentials": "Incorrect email or password.",
+  "auth.unauthorized": "Please sign in to continue.",
+  "auth.forbidden": "You don't have permission for this action.",
+  "auth.too_many_attempts": "Too many attempts. Please wait a moment."
 }
