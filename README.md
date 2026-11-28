@@ -94,3 +94,9 @@ API (todas con sesión y permisos por pantalla):
 | `GET /api/subscriptions/:id/hwid`, `DELETE /api/subscriptions/:id/hwid/:panel/:hwid` | view / update |
 
 Suspender, reanudar o extender se aplica primero en la plataforma (el agregador deja de servir al instante) y después en el panel; si el panel falla, el resultado se informa en `panel_sync` y queda en la bitácora. Aprovisionar crea el usuario en cada panel del plan y, si alguno falla, deshace los ya creados.
+
+## Planes y clientes (CRM)
+
+- **Planes:** además de nombre, precio, duración, tráfico y dispositivos, llevan `descriptions` y `features` por idioma, `country_prices` (precio distinto por país; si no hay, se usa el base), `visible` y `main`. `GET /api/plans?country=PE` añade `display_price`.
+- **Clientes:** colección `clients` (nunca entran al panel). Campos: nombre, email, WhatsApp (E.164), `telegram_id`, país, idioma, `tags`, `pipeline_stage` (lead, contactado, activo, riesgo, inactivo), `source`, `state`, notas internas. Rutas `/api/clients` con la pantalla `clients` (soporte solo consulta; gerente opera). Una suscripción se enlaza con `client_id`, también al aprovisionar.
+- **Seguridad:** crear usuarios del panel y editar roles es solo del rol `admin`, aunque otro rol tenga el permiso marcado. Tras desplegar, ejecuta `role:sync` para que gerente y soporte reciban la pantalla `clients`.

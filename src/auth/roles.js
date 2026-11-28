@@ -1,6 +1,7 @@
 // Roles en MongoDB con permisos por pantalla y acción. "admin" siempre tiene acceso total; "client" nunca entra al panel.
 const crypto = require("crypto");
 const { ACTIONS, ROUTE_KEYS, DEFAULT_ROLES, NO_PERMS } = require("./permissions");
+const DEF_BY_NAME = Object.fromEntries(DEFAULT_ROLES.map((r) => [r.name, r.routePermissions]));
 
 const err = (m, code = "VALIDATION") => Object.assign(new Error(m), { code });
 const COLORS = ["primary", "secondary", "success", "warning", "error", "info", "ghost"];
@@ -38,7 +39,7 @@ async function seedRoles(db) {
   invalidate(db);
 }
 
-// Añade a cada rol las pantallas del catálogo que le falten, sin permisos (el admin las recibe completas).
+// Añade a cada rol las pantallas que le falten: los roles de sistema con su valor por defecto, los propios sin permisos.
 async function syncRoutes(db) {
   let updated = 0;
   for (const role of await db.collection("roles").find({}).toArray()) {
@@ -46,7 +47,8 @@ async function syncRoutes(db) {
     let changed = false;
     for (const k of ROUTE_KEYS) {
       if (!rp[k]) {
-        const def = role.name === "admin" ? DEFAULT_ROLES[0].routePermissions[k] : null;
+        // Roles de sistema reciben su valor por defecto en pantallas nuevas; los roles propios, sin permisos.
+        const def = role.isSystem || role.name === "admin" ? (DEF_BY_NAME[role.name] || {})[k] : null;
         rp[k] = def ? Object.fromEntries(ACTIONS.map((a) => [a, def[a] === true])) : { ...NO_PERMS };
         changed = true;
       }

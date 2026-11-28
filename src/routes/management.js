@@ -7,6 +7,10 @@ const { makeGuard } = require("../auth/middleware");
 const roles = require("../auth/roles");
 const { audit } = require("../lib/audit");
 const remna = require("../admin/remna");
+const clients = require("../admin/clients");
+
+// Operaciones que otorgan poder (crear usuarios del panel, editar roles): solo el rol admin, aunque otro rol tenga el permiso marcado.
+const adminOnly = (req, res, next) => (req.user && req.user.role === "admin" ? next() : res.status(403).json({ error: "forbidden", message: "Solo un administrador puede hacer esto" }));
 
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res)).catch(next);
 
@@ -16,7 +20,12 @@ function managementRouter({ db, cfg, fetchImpl }) {
   const pres = (s, full) => ops.presentSubscription(s, { publicBaseUrl: cfg.publicBaseUrl, full });
 
   // --- Planes ---
-  r.get("/api/plans", requirePerm("settings/plans", "view"), wrap(async (_req, res) => res.json({ plans: await plans.listPlans(db) })));
+  // ?country=PE añade display_price: el precio de ese país, o el base si no hay uno específico.
+  r.get("/api/plans", requirePerm("settings/plans", "view"), wrap(async (req, res) => {
+    const list = await plans.listPlans(db);
+    const c = req.query.country;
+    res.json({ plans: (c ? list.map((p) => ({ ...p, display_price: plans.priceFor(p, c) })) : list).map(({ _id, ...p }) => p) });
+  }));
   r.post("/api/plans", requirePerm("settings/plans", "create"), wrap(async (req, res) => {
     const p = await plans.createPlan(db, req.body || {});
     await audit(db, req, "plan_create", p.id);
@@ -67,12 +76,44 @@ function managementRouter({ db, cfg, fetchImpl }) {
 
   // --- Usuarios (solo admin). La contraseña se genera y se muestra una única vez. ---
   r.get("/api/users", requirePerm("users", "view"), wrap(async (_req, res) => res.json({ users: await listUsers(db) })));
-  r.post("/api/users", requirePerm("users", "create"), wrap(async (req, res) => {
+  r.post("/api/users", requirePerm("users", "create"), adminOnly, wrap(async (req, res) => {
     const b = req.body || {};
     const password = generatePassword();
     const user = await createUser(db, { email: b.email, password, role: b.role, language: b.language, name: b.name });
     await audit(db, req, "user_create", user.id, { role: user.role });
     res.status(201).json({ user, temporary_password: password });
+  }));
+
+  // --- Clientes (CRM). Nunca tienen acceso al panel. ---
+  const cid = (req) => req.user && req.user.id;
+  r.get("/api/clients", requirePerm("clients", "view"), wrap(async (req, res) => {
+    const { stage, tag, state, q } = req.query;
+    res.json({ clients: (await clients.listClients(db, { stage, tag, state, q })).map(clients.present) });
+  }));
+  r.get("/api/clients/:id", requirePerm("clients", "view"), wrap(async (req, res) => {
+    const c = await clients.getClient(db, req.params.id);
+    if (!c) return res.status(404).json({ error: "not_found" });
+    res.json({ client: clients.present(c), subscriptions: (await clients.clientSubscriptions(db, c.id)).map((s) => pres(s, false)) });
+  }));
+  r.post("/api/clients", requirePerm("clients", "create"), wrap(async (req, res) => {
+    const c = await clients.createClient(db, req.body || {}, cid(req));
+    await audit(db, req, "client_create", c.id);
+    res.status(201).json({ client: clients.present(c) });
+  }));
+  r.patch("/api/clients/:id", requirePerm("clients", "update"), wrap(async (req, res) => {
+    const c = await clients.updateClient(db, req.params.id, req.body || {});
+    await audit(db, req, "client_update", c.id, { fields: Object.keys(req.body || {}) });
+    res.json({ client: clients.present(c) });
+  }));
+  r.post("/api/clients/:id/notes", requirePerm("clients", "update"), wrap(async (req, res) => {
+    const c = await clients.addNote(db, req.params.id, (req.body || {}).text, cid(req));
+    await audit(db, req, "client_note", c.id); // el texto de la nota no se copia a la bitácora
+    res.status(201).json({ client: clients.present(c) });
+  }));
+  r.post("/api/clients/:id/subscriptions/:subId", requirePerm("clients", "update"), wrap(async (req, res) => {
+    await clients.linkSubscription(db, req.params.id, req.params.subId);
+    await audit(db, req, "client_link_subscription", req.params.id, { subscription: req.params.subId });
+    res.json({ ok: true });
   }));
 
   // --- Bitácora ---
@@ -87,22 +128,22 @@ function managementRouter({ db, cfg, fetchImpl }) {
     if (!role) return res.status(404).json({ error: "not_found" });
     res.json({ role });
   }));
-  r.post("/api/roles", requirePerm("roles", "create"), wrap(async (req, res) => {
+  r.post("/api/roles", requirePerm("roles", "create"), adminOnly, wrap(async (req, res) => {
     const { _id, ...role } = await roles.createRole(db, req.body || {});
     await audit(db, req, "role_create", role.name);
     res.status(201).json({ role });
   }));
-  r.post("/api/roles/sync-routes", requirePerm("roles", "update"), wrap(async (req, res) => {
+  r.post("/api/roles/sync-routes", requirePerm("roles", "update"), adminOnly, wrap(async (req, res) => {
     const updated = await roles.syncRoutes(db);
     await audit(db, req, "role_sync_routes", "", { updated });
     res.json({ updated });
   }));
-  r.patch("/api/roles/:id", requirePerm("roles", "update"), wrap(async (req, res) => {
+  r.patch("/api/roles/:id", requirePerm("roles", "update"), adminOnly, wrap(async (req, res) => {
     const role = await roles.updateRole(db, req.params.id, req.body || {});
     await audit(db, req, "role_update", role.name, { fields: Object.keys(req.body || {}) });
     res.json({ role });
   }));
-  r.delete("/api/roles/:id", requirePerm("roles", "delete"), wrap(async (req, res) => {
+  r.delete("/api/roles/:id", requirePerm("roles", "delete"), adminOnly, wrap(async (req, res) => {
     await roles.deleteRole(db, req.params.id);
     await audit(db, req, "role_delete", req.params.id);
     res.json({ ok: true });

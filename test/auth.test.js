@@ -54,11 +54,11 @@ test("usuarios: validaciones, correo normalizado, duplicados y hash oculto", asy
 test("permisos: matriz por rol y pantalla (roles de sistema sembrados)", async () => {
   const db = memDb(); await rolesSvc.seedRoles(db);
   const can = (r, k, a) => rolesSvc.roleCan(db, r, k, a);
-  for (const k of ["users", "roles", "settings/plans", "remnawave"]) for (const a of ["view", "create", "update", "delete"]) assert.ok(await can("admin", k, a), `admin ${k}:${a}`);
-  assert.ok(await can("manager", "users", "create") && await can("manager", "subscriptions", "update") && await can("manager", "activity", "view"));
-  for (const [k, a] of [["users", "delete"], ["subscriptions", "create"], ["settings/plans", "update"], ["roles", "view"], ["settings/servers", "view"]]) assert.ok(!(await can("manager", k, a)), `manager no ${k}:${a}`);
-  for (const k of ["users", "subscriptions", "settings/plans", "dashboard"]) assert.ok(await can("support", k, "view"), `support ve ${k}`);
-  for (const [k, a] of [["users", "create"], ["subscriptions", "update"], ["activity", "view"], ["roles", "view"], ["settings/servers", "view"]]) assert.ok(!(await can("support", k, a)), `support no ${k}:${a}`);
+  for (const k of ["users", "clients", "roles", "settings/plans", "remnawave"]) for (const a of ["view", "create", "update", "delete"]) assert.ok(await can("admin", k, a), `admin ${k}:${a}`);
+  assert.ok(await can("manager", "clients", "create") && await can("manager", "subscriptions", "update") && await can("manager", "activity", "view"));
+  for (const [k, a] of [["users", "view"], ["users", "create"], ["clients", "delete"], ["subscriptions", "create"], ["settings/plans", "update"], ["roles", "view"], ["settings/servers", "view"]]) assert.ok(!(await can("manager", k, a)), `manager no ${k}:${a}`);
+  for (const k of ["clients", "subscriptions", "settings/plans", "dashboard"]) assert.ok(await can("support", k, "view"), `support ve ${k}`);
+  for (const [k, a] of [["users", "view"], ["clients", "create"], ["subscriptions", "update"], ["activity", "view"], ["roles", "view"], ["settings/servers", "view"]]) assert.ok(!(await can("support", k, a)), `support no ${k}:${a}`);
   for (const r of ["client", "inventado", undefined, ""]) assert.ok(!(await can(r, "users", "view")), `rol ${r}`);
   assert.ok(!(await can("support", "pantalla-inexistente", "view")));
 });
@@ -163,7 +163,10 @@ test("support solo consulta; manager opera; ninguno administra", async () => {
   const ext = await (await s.call(`/api/subscriptions/${doc.id}/extend`, { method: "POST", body: { days: 30 }, token: mgr })).json();
   const dias = (new Date(ext.subscription.expires_at) - Date.now()) / 864e5; assert.ok(dias > 39.9 && dias <= 40);
   assert.equal((await s.call("/api/audit", { token: mgr })).status, 200);
-  assert.equal((await s.call("/api/users", { method: "POST", body: { email: "x@test.com", role: "support" }, token: mgr })).status, 201);
+  // El gerente NO administra usuarios del panel: ni siquiera uno de rol inferior, y menos un admin (escalada).
+  for (const role of ["support", "admin"]) assert.equal((await s.call("/api/users", { method: "POST", body: { email: "x@test.com", role }, token: mgr })).status, 403, `gerente no crea ${role}`);
+  assert.equal((await s.db.collection("users").findOne({ email: "x@test.com" })), null);
+  assert.equal((await s.call("/api/users", { token: mgr })).status, 403);
   for (const [m, p, b] of [["POST", "/api/subscriptions", { panel_id: "rw1", short_uuid: "zzzz1234" }], ["POST", "/api/plans", {}], ["PATCH", "/api/plans/x", {}]]) {
     assert.equal((await s.call(p, { method: m, body: b, token: mgr })).status, 403, `manager ${m} ${p}`);
   }
