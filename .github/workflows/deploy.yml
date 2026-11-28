@@ -1,77 +1,17 @@
+# .github/workflows/deploy.yml del repo backend-carlosvpn
 name: Desplegar backend en el VPS
-
-# Se ejecuta al hacer merge a prod-VPN (o a mano desde la pestaña Actions).
 on:
   push:
     branches: [prod-VPN]
   workflow_dispatch:
-
 permissions:
   contents: read
   packages: write
-
-concurrency:
-  group: deploy-backend
-  cancel-in-progress: false
-
-env:
-  IMAGE: ghcr.io/${{ github.repository }}
-
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: npm }
-      - run: npm ci
-      - run: npm test
-
   deploy:
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          tags: |
-            ${{ env.IMAGE }}:latest
-            ${{ env.IMAGE }}:${{ github.sha }}
-
-      - name: Desplegar por SSH
-        env:
-          HOST: ${{ secrets.VPS_HOST }}
-          USER_SSH: ${{ secrets.VPS_USER }}
-          KEY: ${{ secrets.VPS_SSH_KEY }}
-          TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ACTOR: ${{ github.actor }}
-          SHA: ${{ github.sha }}
-        run: |
-          install -m 700 -d ~/.ssh
-          printf '%s\n' "$KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
-          # El token viaja por stdin, no por la línea de comandos.
-          printf '%s' "$TOKEN" | ssh -i ~/.ssh/deploy_key "$USER_SSH@$HOST" \
-            "docker login ghcr.io -u '$ACTOR' --password-stdin >/dev/null && \
-             cd /opt/carlosvpn && \
-             export BACKEND_TAG='$SHA' && \
-             docker compose pull backend && \
-             docker compose up -d backend caddy && \
-             docker image prune -f >/dev/null"
-
-      - name: Comprobar que responde
-        run: |
-          for i in $(seq 1 15); do
-            if curl -fsS --max-time 5 https://vpn.carlosvm.me/health; then echo; exit 0; fi
-            sleep 4
-          done
-          echo "::error::https://vpn.carlosvm.me/health no responde tras el despliegue"; exit 1
+    uses: calberto185/infra-carlosvpn/.github/workflows/deploy-service.yml@v1
+    with:
+      service: backend
+      tag_var: BACKEND_TAG
+      health_url: https://vpn.carlosvm.me/health
+    secrets: inherit
