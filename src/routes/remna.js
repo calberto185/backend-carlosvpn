@@ -5,6 +5,7 @@ const remna = require("../admin/remna");
 const ops = require("../admin/ops");
 const { makeGuard } = require("../auth/middleware");
 const { audit } = require("../lib/audit");
+const clients = require("../admin/clients");
 
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res)).catch(next);
 const NODE_ACTIONS = ["enable", "disable", "restart"];
@@ -49,8 +50,10 @@ function remnaRouter({ db, cfg, fetchImpl }) {
   // Alta de cliente a partir de un plan: crea el usuario en cada panel del plan y la suscripción.
   r.post("/api/subscriptions/provision", requirePerm("subscriptions", "create"), guarded(async (req, res) => {
     const b = req.body || {};
+    if (b.client_id && !(await clients.getClient(db, b.client_id))) return res.status(400).json({ error: "validation", message: "No existe ese cliente" });
     const out = await remna.provisionFromPlan(db, cfg, { plan_id: b.plan_id, label: b.label, language: b.language, email: b.email, telegram_id: b.telegram_id }, { fetchImpl, publicBaseUrl: cfg.publicBaseUrl });
-    await audit(db, req, "subscription_provision", out.doc.id, { plan_id: b.plan_id });
+    if (b.client_id) await clients.linkSubscription(db, b.client_id, out.doc.id);
+    await audit(db, req, "subscription_provision", out.doc.id, { plan_id: b.plan_id, client_id: b.client_id || null });
     res.status(201).json({ subscription: ops.presentSubscription(out.doc, { publicBaseUrl: cfg.publicBaseUrl, full: true }) });
   }));
 

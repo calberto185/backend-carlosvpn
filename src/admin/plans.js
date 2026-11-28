@@ -18,6 +18,55 @@ function cleanNames(names) {
   return out;
 }
 
+// Textos por idioma: { es: "texto", en: "text" }.
+function cleanTexts(obj, field, max) {
+  const out = {};
+  for (const [k, v] of Object.entries(obj || {})) {
+    const l = normalize(k);
+    if (!l) throw err(`${field}: idioma desconocido "${k}" (usa ${LOCALES.join(", ")})`);
+    const t = String(v || "").trim();
+    if (t) out[l] = t.slice(0, max);
+  }
+  return out;
+}
+
+// Características por idioma: { es: ["3 dispositivos", ...] } (máx. 12 por idioma).
+function cleanFeatures(obj) {
+  const out = {};
+  for (const [k, list] of Object.entries(obj || {})) {
+    const l = normalize(k);
+    if (!l) throw err(`features: idioma desconocido "${k}" (usa ${LOCALES.join(", ")})`);
+    if (!Array.isArray(list)) throw err(`features.${k} debe ser una lista`);
+    const items = list.map((x) => String(x || "").trim().slice(0, 80)).filter(Boolean).slice(0, 12);
+    if (items.length) out[l] = items;
+  }
+  return out;
+}
+
+// Precio distinto por país (ISO-3166 alfa-2). Si no hay precio para el país, se usa el precio base.
+function cleanCountryPrices(list) {
+  if (!Array.isArray(list)) throw err("country_prices debe ser una lista");
+  const seen = new Set(), out = [];
+  for (const c of list) {
+    const country = String((c && c.country) || "").toUpperCase();
+    if (!/^[A-Z]{2}$/.test(country)) throw err("country_prices[].country debe ser un código de 2 letras (ej. PE, RU)");
+    if (seen.has(country)) throw err(`country_prices: país repetido (${country})`);
+    seen.add(country);
+    const amount = Number(c.amount), currency = String(c.currency || "").toUpperCase();
+    if (!Number.isFinite(amount) || amount < 0 || amount > 1e6) throw err(`country_prices[${country}].amount inválido`);
+    if (!CURRENCIES.includes(currency)) throw err(`country_prices[${country}].currency debe ser: ${CURRENCIES.join(", ")}`);
+    out.push({ country, amount: Math.round(amount * 100) / 100, currency });
+  }
+  return out;
+}
+
+// Precio que ve un cliente: el de su país si existe, o el base.
+function priceFor(plan, country) {
+  const c = String(country || "").toUpperCase();
+  const hit = (plan.country_prices || []).find((x) => x.country === c);
+  return hit ? { amount: hit.amount, currency: hit.currency } : plan.price;
+}
+
 function validatePlan(p, { partial = false } = {}) {
   const out = {};
   const has = (k) => p[k] !== undefined;
@@ -55,6 +104,11 @@ function validatePlan(p, { partial = false } = {}) {
     if (!Array.isArray(p.panel_ids)) throw err("panel_ids debe ser una lista de ids de panel");
     out.panel_ids = [...new Set(p.panel_ids.map(String))];
   }
+  if (has("descriptions")) out.descriptions = cleanTexts(p.descriptions, "descriptions", 300);
+  if (has("features")) out.features = cleanFeatures(p.features);
+  if (has("country_prices")) out.country_prices = cleanCountryPrices(p.country_prices);
+  if (has("visible")) out.visible = !!p.visible;
+  if (has("main")) out.main = !!p.main;
   if (has("active")) out.active = !!p.active;
   if (has("sort")) { const s = Number(p.sort); if (!Number.isInteger(s)) throw err("sort debe ser entero"); out.sort = s; }
   return out;
@@ -68,7 +122,7 @@ async function createPlan(db, input) {
   const v = validatePlan(input);
   if (await db.collection("plans").findOne({ id: v.id })) throw err(`Ya existe el plan "${v.id}"`);
   await checkPanels(db, v.panel_ids);
-  const doc = { active: false, sort: 0, ...v, createdAt: new Date(), updatedAt: new Date() };
+  const doc = { active: false, visible: false, main: false, descriptions: {}, features: {}, country_prices: [], sort: 0, ...v, createdAt: new Date(), updatedAt: new Date() };
   await db.collection("plans").insertOne(doc);
   return doc;
 }
@@ -109,4 +163,4 @@ async function seedExamplePlans(db, { panel_ids = [] } = {}) {
   return created;
 }
 
-module.exports = { validatePlan, createPlan, updatePlan, listPlans, getPlan, seedExamplePlans, CURRENCIES };
+module.exports = { priceFor, validatePlan, createPlan, updatePlan, listPlans, getPlan, seedExamplePlans, CURRENCIES };
