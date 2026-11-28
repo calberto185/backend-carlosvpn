@@ -6,5 +6,9 @@
   "error.rate_limited": "Demasiadas solicitudes. Espera un momento.",
   "lang.choose": "Elige tu idioma",
   "lang.changed": "Idioma cambiado a {name}.",
-  "sub.announce": "Gracias por elegir Carlos VPN. ¿Necesitas ayuda? Toca el icono de soporte."
+  "sub.announce": "Gracias por elegir Carlos VPN. ¿Necesitas ayuda? Toca el icono de soporte.",
+  "auth.invalid_credentials": "Correo o contraseña incorrectos.",
+  "auth.unauthorized": "Inicia sesión para continuar.",
+  "auth.forbidden": "No tienes permiso para esta acción.",
+  "auth.too_many_attempts": "Demasiados intentos. Espera un momento."
 }

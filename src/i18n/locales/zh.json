@@ -6,5 +6,9 @@
   "error.rate_limited": "请求过多，请稍候。",
   "lang.choose": "选择语言",
   "lang.changed": "语言已切换为 {name}。",
-  "sub.announce": "感谢选择 Carlos VPN。需要帮助？请点击支持图标。"
+  "sub.announce": "感谢选择 Carlos VPN。需要帮助？请点击支持图标。",
+  "auth.invalid_credentials": "邮箱或密码不正确。",
+  "auth.unauthorized": "请先登录后再继续。",
+  "auth.forbidden": "您没有执行此操作的权限。",
+  "auth.too_many_attempts": "尝试次数过多，请稍候。"
 }

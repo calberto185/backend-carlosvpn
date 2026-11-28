@@ -17,6 +17,7 @@ function load(env = process.env) {
     subUpdateIntervalHours: num(env.SUB_UPDATE_INTERVAL_HOURS, 6),
     rateLimitPerMin: num(env.RATE_LIMIT_PER_MIN, 30),
     defaultLocale: env.DEFAULT_LOCALE || "es",
+    sessionTtlHours: num(env.SESSION_TTL_HOURS, 12),
   };
   return cfg;
 }

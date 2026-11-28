@@ -1,43 +1,11 @@
+# Copia este archivo a .github/workflows/promote.yml de cada repo (backend, frontend, bots). No lleva lógica propia.
 name: Promover master a prod-VPN
-
-# Cada push a master abre (si no existe ya) un Pull Request master -> prod-VPN.
-# Al hacer merge de ese PR se ejecuta deploy.yml.
 on:
   push:
     branches: [master]
-
 permissions:
   contents: read
   pull-requests: write
-
-concurrency:
-  group: promote
-  cancel-in-progress: false
-
 jobs:
   promote:
-    runs-on: ubuntu-latest
-    env:
-      GH_TOKEN: ${{ github.token }}
-      GH_REPO: ${{ github.repository }}
-    steps:
-      - uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
-
-      - name: Abrir PR a prod-VPN
-        run: |
-          if ! git ls-remote --exit-code --heads origin prod-VPN >/dev/null 2>&1; then
-            echo "::error::No existe la rama prod-VPN. Créala una vez desde master (ver README) y repite."
-            exit 1
-          fi
-          if git diff --quiet origin/prod-VPN origin/master; then
-            echo "master y prod-VPN ya son iguales: no hay nada que promover."; exit 0
-          fi
-          OPEN=$(gh pr list --base prod-VPN --head master --state open --json number --jq length)
-          if [ "$OPEN" != "0" ]; then
-            echo "Ya hay un PR abierto; se actualiza solo con este push."; exit 0
-          fi
-          MSG=$(git log -1 --format=%s)
-          gh pr create --base prod-VPN --head master \
-            --title "Release: $MSG" \
-            --body "Promoción automática de master a prod-VPN. Al hacer merge se prueba, se construye la imagen y se despliega en el VPS."
+    uses: calberto185/infra-carlosvpn/.github/workflows/promote.yml@v1
