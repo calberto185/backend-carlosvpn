@@ -69,3 +69,28 @@ La contraseña se genera y se muestra una sola vez. Los planes de ejemplo nacen 
 
 Los cambios en un rol se aplican de inmediato. No se puede borrar un rol de sistema ni uno con usuarios asignados.
 La lista de suscripciones nunca expone el token ni el `short_uuid` de los paneles. Toda acción sensible se registra en `audit_log`.
+
+## Remnawave (administración del panel)
+
+Cada panel guarda `api_url` y el token de API **cifrado** (AES-256-GCM con `ENCRYPTION_KEY`). El token nunca se pasa por argumentos ni por chat:
+
+```bash
+cd /opt/carlosvpn
+docker compose exec backend node src/cli.js panel:set-token --id rw1 --api-url https://service.carlosvm.me   # pide el token sin mostrarlo
+docker compose exec backend node src/cli.js panel:check --id rw1                                              # solo lectura
+```
+
+`panel:check` consulta salud, estadísticas, nodos y squads. Hasta que pase, la integración se considera **sin verificar** contra tu versión de Remnawave.
+
+API (todas con sesión y permisos por pantalla):
+
+| Ruta | Permiso |
+|---|---|
+| `GET /api/remna/{check,nodes,hosts,squads,stats}?panel=<id>` | `remnawave` view |
+| `POST /api/remna/nodes/:uuid/{enable,disable,restart}?panel=<id>` | `remnawave` update |
+| `POST /api/subscriptions/provision` `{plan_id,label,language,email,telegram_id}` | `subscriptions` create |
+| `POST /api/subscriptions/:id/{suspend,resume,extend}` (propagan al panel; devuelven `panel_sync`) | `subscriptions` update |
+| `POST /api/subscriptions/:id/{reset-traffic,revoke}` | `subscriptions` update |
+| `GET /api/subscriptions/:id/hwid`, `DELETE /api/subscriptions/:id/hwid/:panel/:hwid` | view / update |
+
+Suspender, reanudar o extender se aplica primero en la plataforma (el agregador deja de servir al instante) y después en el panel; si el panel falla, el resultado se informa en `panel_sync` y queda en la bitácora. Aprovisionar crea el usuario en cada panel del plan y, si alguno falla, deshace los ya creados.

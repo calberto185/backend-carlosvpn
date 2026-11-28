@@ -5,8 +5,9 @@ const { i18nRouter } = require("./routes/i18n");
 const { attachUser } = require("./auth/middleware");
 const { authRouter } = require("./routes/auth");
 const { managementRouter } = require("./routes/management");
+const { remnaRouter } = require("./routes/remna");
 
-function createApp({ repo, providers, cfg, db }) {
+function createApp({ repo, providers, cfg, db, fetchImpl }) {
   const app = express();
   app.disable("x-powered-by");
   app.set("trust proxy", 1); // detrás de nginx/caddy
@@ -17,7 +18,8 @@ function createApp({ repo, providers, cfg, db }) {
   if (db) {
     app.use("/api", express.json({ limit: "20kb" }), attachUser(db, cfg));
     app.use(authRouter({ db, cfg }));
-    app.use(managementRouter({ db, cfg }));
+    app.use(managementRouter({ db, cfg, fetchImpl }));
+    app.use(remnaRouter({ db, cfg, fetchImpl }));
   }
   app.use((e, req, res, _next) => {
     if (e && e.code === "VALIDATION") return res.status(400).json({ error: "validation", message: e.message });
