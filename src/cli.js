@@ -8,11 +8,16 @@ const plans = require("./admin/plans");
 const auth = require("./auth/service");
 const rolesSvc = require("./auth/roles");
 const { generatePassword } = require("./lib/password");
+const remna = require("./admin/remna");
+const { readSecret } = require("./lib/prompt");
 
 const AYUDA = `Carlos VPN — administración
 
   panel:add  --id rw1 --sub-url https://sub.carlosvm.me [--provider remnawave] [--name "Remnawave principal"]
   panel:list
+  panel:set-token --id rw1 [--api-url https://service.carlosvm.me] [--squads uuid1,uuid2] [--caddy]
+              pide el token de API SIN mostrarlo (o léelo de stdin); se guarda cifrado. Con --caddy pide también la API key de Caddy.
+  panel:check --id rw1            comprueba el panel en solo lectura (salud, estadísticas, nodos, squads)
   sub:add    --panel rw1 --short-uuid <shortUuid> [--days 30] [--lang es] [--label "prueba"]
   sub:list
   sub:suspend --token <token>
@@ -54,7 +59,17 @@ async function main() {
     } else if (cmd === "panel:list") {
       const l = await ops.listPanels(db);
       if (!l.length) console.log("(sin paneles)");
-      for (const p of l) console.log(`${p.id}\t${p.provider}\t${p.sub_url}`);
+      for (const p of l) console.log(`${p.id}\t${p.provider}\t${p.sub_url}\t${p.api_url || "-"}\ttoken:${p.api_token ? "sí" : "no"}\tapi:${p.api_ok === true ? "ok" : p.api_ok === false ? "FALLA" : "sin comprobar"}`);
+    } else if (cmd === "panel:set-token") {
+      const token = await readSecret("Token de API de Remnawave (no se muestra): ");
+      const caddy = a.caddy ? await readSecret("API key de Caddy (no se muestra): ") : undefined;
+      const p = await remna.setPanelCredentials(db, cfg, a.id, { api_url: a.api_url, api_token: token, caddy_key: caddy, squad_uuids: a.squads ? String(a.squads).split(",") : undefined });
+      console.log(`Credenciales guardadas (cifradas) para ${p.id}. Ahora ejecuta: panel:check --id ${p.id}`);
+    } else if (cmd === "panel:check") {
+      const r = await remna.checkPanel(db, cfg, a.id);
+      for (const [k, c] of Object.entries(r.checks)) console.log(`${c.ok ? "OK   " : "FALLA"} ${k}${c.ok ? (typeof c.value === "number" ? ` (${c.value})` : "") : ` — ${c.error}${c.status ? ` [HTTP ${c.status}]` : ""}`}`);
+      console.log(r.ok ? "Panel verificado." : "El panel NO está verificado.");
+      if (!r.ok) process.exitCode = 1;
     } else if (cmd === "sub:add") {
       const r = await ops.addSubscription(db, { panel_id: a.panel, short_uuid: a.short_uuid, days: a.days, language: a.lang, label: a.label }, { publicBaseUrl: cfg.publicBaseUrl });
       console.log(`Suscripción creada (vence ${r.doc.expires_at.slice(0, 10)}).\nEnlace para el cliente:\n${r.url}`);

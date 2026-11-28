@@ -6,10 +6,11 @@ const { generatePassword } = require("../lib/password");
 const { makeGuard } = require("../auth/middleware");
 const roles = require("../auth/roles");
 const { audit } = require("../lib/audit");
+const remna = require("../admin/remna");
 
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res)).catch(next);
 
-function managementRouter({ db, cfg }) {
+function managementRouter({ db, cfg, fetchImpl }) {
   const r = express.Router();
   const requirePerm = makeGuard(db);
   const pres = (s, full) => ops.presentSubscription(s, { publicBaseUrl: cfg.publicBaseUrl, full });
@@ -29,7 +30,7 @@ function managementRouter({ db, cfg }) {
 
   // --- Paneles (solo lectura; el alta sigue siendo por CLI hasta tener el proveedor completo) ---
   r.get("/api/panels", requirePerm("settings/servers", "view"), wrap(async (_req, res) => {
-    res.json({ panels: (await ops.listPanels(db)).map(({ _id, ...p }) => p) });
+    res.json({ panels: (await ops.listPanels(db)).map(remna.publicPanel) });
   }));
 
   // --- Suscripciones ---
@@ -48,17 +49,20 @@ function managementRouter({ db, cfg }) {
     await audit(db, req, "subscription_create", out.doc.id);
     res.status(201).json({ subscription: pres(out.doc, true) });
   }));
+  // Primero se aplica aquí (el agregador deja de servir al instante) y luego se propaga al panel.
   for (const [path, status, action] of [["suspend", "suspended", "subscription_suspend"], ["resume", "active", "subscription_resume"]]) {
     r.post(`/api/subscriptions/:id/${path}`, requirePerm("subscriptions", "update"), wrap(async (req, res) => {
       const s = await ops.setStatusById(db, req.params.id, status);
-      await audit(db, req, action, s.id);
-      res.json({ subscription: pres(s, false) });
+      const panel_sync = await remna.propagate(db, cfg, s, path, {}, { fetchImpl });
+      await audit(db, req, action, s.id, { panel_sync });
+      res.json({ subscription: pres(s, false), panel_sync });
     }));
   }
   r.post("/api/subscriptions/:id/extend", requirePerm("subscriptions", "update"), wrap(async (req, res) => {
     const s = await ops.extendSubscription(db, req.params.id, (req.body || {}).days);
-    await audit(db, req, "subscription_extend", s.id, { days: Number(req.body.days) });
-    res.json({ subscription: pres(s, false) });
+    const panel_sync = await remna.propagate(db, cfg, s, "extend", { days: Number(req.body.days) }, { fetchImpl });
+    await audit(db, req, "subscription_extend", s.id, { days: Number(req.body.days), panel_sync });
+    res.json({ subscription: pres(s, false), panel_sync });
   }));
 
   // --- Usuarios (solo admin). La contraseña se genera y se muestra una única vez. ---
